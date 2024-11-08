@@ -1,0 +1,114 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_RECENT 5
+#define MAX_HISTORY 100
+
+// Measurement structure to hold individual readings
+typedef struct {
+    int heart_rate;
+    float temperature;
+} Measurement;
+
+// Queue structure to hold recent measurements
+typedef struct {
+    Measurement recent[MAX_RECENT];
+    int front;
+    int rear;
+    int size;
+} Queue;
+
+// Stack structure to hold historical measurements
+typedef struct {
+    Measurement history[MAX_HISTORY];
+    int top;
+} Stack;
+
+// Function to initialize queue
+void initQueue(Queue *q) {
+    q->front = 0;
+    q->rear = -1;
+    q->size = 0;
+}
+
+// Function to initialize stack
+void initStack(Stack *s) {
+    s->top = -1;
+}
+
+// Function to add a measurement to the queue (enqueue)
+void enqueue(Queue *q, Measurement m) {
+    if (q->size == MAX_RECENT) {
+        // Queue is full, overwrite the oldest element
+        q->front = (q->front + 1) % MAX_RECENT;
+    } else {
+        q->size++;
+    }
+    q->rear = (q->rear + 1) % MAX_RECENT;
+    q->recent[q->rear] = m;
+}
+
+// Function to add a measurement to the stack (push)
+void push(Stack *s, Measurement m) {
+    if (s->top < MAX_HISTORY - 1) {
+        s->history[++(s->top)] = m;
+    } else {
+        printf("Error: Stack overflow\n");
+    }
+}
+
+// Function to add a new measurement and store in both queue and stack
+void addMeasurement(Queue *q, Stack *s, int heart_rate, float temperature) {
+    Measurement m;
+    m.heart_rate = heart_rate;
+    m.temperature = temperature;
+    enqueue(q, m);
+    push(s, m);
+    printf("New measurement added -- Heart Rate: %d, Temperature: %.1f\n", heart_rate, temperature);
+}
+
+// Function to print recent measurements from the queue
+void printRecentMeasurements(Queue *q) {
+    printf("Recent Measurements:\n");
+    for (int i = 0; i < q->size; i++) {
+        int index = (q->front + i) % MAX_RECENT;
+        printf("Heart Rate: %d, Temperature: %.1f\n",
+               q->recent[index].heart_rate,
+               q->recent[index].temperature);
+    }
+}
+
+// Function to print all historical measurements from the stack
+void printAllMeasurements(Stack *s) {
+    printf("All Historical Measurements:\n");
+    for (int i = 0; i <= s->top; i++) {
+        printf("Heart Rate: %d, Temperature: %.1f\n",
+               s->history[i].heart_rate,
+               s->history[i].temperature);
+    }
+}
+
+// Main function to demonstrate usage
+int main() {
+    Queue recentMeasurements;
+    Stack historyMeasurements;
+
+    initQueue(&recentMeasurements);
+    initStack(&historyMeasurements);
+
+    // Adding sample measurements
+    addMeasurement(&recentMeasurements, &historyMeasurements, 75, 98.6);
+    addMeasurement(&recentMeasurements, &historyMeasurements, 80, 99.1);
+    addMeasurement(&recentMeasurements, &historyMeasurements, 78, 98.4);
+    addMeasurement(&recentMeasurements, &historyMeasurements, 82, 98.8);
+    addMeasurement(&recentMeasurements, &historyMeasurements, 76, 98.5);
+    addMeasurement(&recentMeasurements, &historyMeasurements, 79, 98.9); // Overwrites oldest
+
+    // Print recent measurements from queue
+    printRecentMeasurements(&recentMeasurements);
+
+    // Print all historical measurements from stack
+    printAllMeasurements(&historyMeasurements);
+
+    return 0;
+}
