@@ -3,43 +3,40 @@
 
 #define MAX_RECENT 5
 #define MAX_HISTORY 100
+#define FILE_NAME "health_data.txt"
 
-// Measurement structure to hold individual readings
+// Measurement structure
 typedef struct {
     int heart_rate;
     float temperature;
 } Measurement;
 
-// Queue structure to hold recent measurements
+// Queue (Recent)
 typedef struct {
     Measurement recent[MAX_RECENT];
-    int front;
-    int rear;
-    int size;
+    int front, rear, size;
 } Queue;
 
-// Stack structure to hold historical measurements
+// Stack (History)
 typedef struct {
     Measurement history[MAX_HISTORY];
     int top;
 } Stack;
 
-// Function to initialize queue
+// ---------------- INITIALIZATION ----------------
 void initQueue(Queue *q) {
     q->front = 0;
     q->rear = -1;
     q->size = 0;
 }
 
-// Function to initialize stack
 void initStack(Stack *s) {
     s->top = -1;
 }
 
-// Function to add a measurement to the queue (enqueue)
+// ---------------- QUEUE ----------------
 void enqueue(Queue *q, Measurement m) {
     if (q->size == MAX_RECENT) {
-        // Queue is full, overwrite the oldest element
         q->front = (q->front + 1) % MAX_RECENT;
     } else {
         q->size++;
@@ -48,67 +45,136 @@ void enqueue(Queue *q, Measurement m) {
     q->recent[q->rear] = m;
 }
 
-// Function to add a measurement to the stack (push)
+// ---------------- STACK ----------------
 void push(Stack *s, Measurement m) {
     if (s->top < MAX_HISTORY - 1) {
         s->history[++(s->top)] = m;
-    } else {
-        printf("Error: Stack overflow\n");
     }
 }
 
-// Function to add a new measurement and store in both queue and stack
-void addMeasurement(Queue *q, Stack *s, int heart_rate, float temperature) {
-    Measurement m;
-    m.heart_rate = heart_rate;
-    m.temperature = temperature;
-    enqueue(q, m);
-    push(s, m);
-    printf("New measurement added -- Heart Rate: %d, Temperature: %.1f\n", heart_rate, temperature);
+// ---------------- FILE HANDLING ----------------
+void saveToFile(Measurement m) {
+    FILE *fp = fopen(FILE_NAME, "a");
+    if (fp != NULL) {
+        fprintf(fp, "%d %.1f\n", m.heart_rate, m.temperature);
+        fclose(fp);
+    }
 }
 
-// Function to print recent measurements from the queue
-void printRecentMeasurements(Queue *q) {
-    printf("Recent Measurements:\n");
+void loadFromFile(Queue *q, Stack *s) {
+    FILE *fp = fopen(FILE_NAME, "r");
+    if (fp == NULL) return;
+
+    Measurement m;
+    while (fscanf(fp, "%d %f", &m.heart_rate, &m.temperature) != EOF) {
+        enqueue(q, m);
+        push(s, m);
+    }
+    fclose(fp);
+}
+
+// ---------------- CORE FUNCTION ----------------
+void addMeasurement(Queue *q, Stack *s) {
+    Measurement m;
+
+    printf("Enter Heart Rate: ");
+    scanf("%d", &m.heart_rate);
+
+    printf("Enter Temperature: ");
+    scanf("%f", &m.temperature);
+
+    enqueue(q, m);
+    push(s, m);
+    saveToFile(m);
+
+    printf("✅ Measurement Added!\n");
+
+    // Alerts
+    if (m.heart_rate > 100)
+        printf("⚠ ALERT: High Heart Rate!\n");
+    else if (m.heart_rate < 60)
+        printf("⚠ ALERT: Low Heart Rate!\n");
+
+    if (m.temperature > 99.5)
+        printf("⚠ ALERT: Fever Detected!\n");
+}
+
+// ---------------- DISPLAY ----------------
+void printRecent(Queue *q) {
+    if (q->size == 0) {
+        printf("No recent data.\n");
+        return;
+    }
+
+    printf("\n--- Recent Measurements ---\n");
     for (int i = 0; i < q->size; i++) {
         int index = (q->front + i) % MAX_RECENT;
-        printf("Heart Rate: %d, Temperature: %.1f\n",
+        printf("Heart Rate: %d | Temp: %.1f\n",
                q->recent[index].heart_rate,
                q->recent[index].temperature);
     }
 }
 
-// Function to print all historical measurements from the stack
-void printAllMeasurements(Stack *s) {
-    printf("All Historical Measurements:\n");
+void printHistory(Stack *s) {
+    if (s->top == -1) {
+        printf("No history available.\n");
+        return;
+    }
+
+    printf("\n--- Full History ---\n");
     for (int i = 0; i <= s->top; i++) {
-        printf("Heart Rate: %d, Temperature: %.1f\n",
+        printf("Heart Rate: %d | Temp: %.1f\n",
                s->history[i].heart_rate,
                s->history[i].temperature);
     }
 }
 
-// Main function to demonstrate usage
+// ---------------- MENU ----------------
+void menu() {
+    printf("\n===== SMART HEALTH MONITOR =====\n");
+    printf("1. Add Measurement\n");
+    printf("2. View Recent Measurements\n");
+    printf("3. View Full History\n");
+    printf("4. Exit\n");
+    printf("Enter choice: ");
+}
+
+// ---------------- MAIN ----------------
 int main() {
-    Queue recentMeasurements;
-    Stack historyMeasurements;
+    Queue q;
+    Stack s;
+    int choice;
 
-    initQueue(&recentMeasurements);
-    initStack(&historyMeasurements);
+    initQueue(&q);
+    initStack(&s);
 
-    // Adding sample measurements
-    addMeasurement(&recentMeasurements, &historyMeasurements, 75, 98.6);
-    addMeasurement(&recentMeasurements, &historyMeasurements, 80, 99.1);
-    addMeasurement(&recentMeasurements, &historyMeasurements, 78, 98.4);
-    addMeasurement(&recentMeasurements, &historyMeasurements, 82, 98.8);
-    addMeasurement(&recentMeasurements, &historyMeasurements, 76, 98.5);
-    addMeasurement(&recentMeasurements, &historyMeasurements, 79, 98.9); // Overwrites oldest
+    loadFromFile(&q, &s);
 
-    // Print recent measurements from queue
-    printRecentMeasurements(&recentMeasurements);
+    while (1) {
+        menu();
+        scanf("%d", &choice);
 
-    // Print all historical measurements from stack
-    printAllMeasurements(&historyMeasurements);
+        switch (choice) {
+            case 1:
+                addMeasurement(&q, &s);
+                break;
+
+            case 2:
+                printRecent(&q);
+                break;
+
+            case 3:
+                printHistory(&s);
+                break;
+
+            case 4:
+                printf("Exiting... Thank you!\n");
+                exit(0);
+
+            default:
+                printf("Invalid choice!\n");
+        }
+    }
 
     return 0;
 }
